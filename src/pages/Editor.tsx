@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   ChevronLeft, Trash2, Image as ImageIcon, Video,
   AlignLeft, Minus, Check, Loader2, Eye, Pencil,
 } from 'lucide-react';
 import { getProject, savePage, BackendPage } from '@/src/services/pageService';
-import { getMyProjects } from '@/src/services/projectService';
 import { useAuth } from '../context/AuthContext';
+import { useProject } from '../context/ProjectContext';
 import { PagePreview } from '../components/BlockRenderer';
+import NoProjectSelected from '../components/NoProjectSelected';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -274,27 +275,20 @@ function DividerSection() {
 // ─── Main Editor ──────────────────────────────────────────────────────────────
 
 export default function Editor() {
-  const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { currentProject, loadingProjects } = useProject();
   const [state, setState] = useState<PageState>(DEFAULT_STATE);
   const [projectName, setProjectName] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [forbidden, setForbidden] = useState(false);
   const [preview, setPreview] = useState(false);
 
   useEffect(() => {
-    if (!projectId || !user) return;
-    if (!user.is_admin) {
-      getMyProjects()
-        .then((mine) => {
-          if (!mine.some((p) => String(p.project_id) === projectId)) setForbidden(true);
-        })
-        .catch(() => setForbidden(true));
-    }
-    getProject(Number(projectId))
+    if (!currentProject || !user) return;
+    setLoading(true);
+    getProject(Number(currentProject.id))
       .then((project) => {
         setProjectName(project.project_name);
         if (project.page) {
@@ -314,13 +308,13 @@ export default function Editor() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [projectId]);
+  }, [currentProject?.id]);
 
   const publish = async () => {
-    if (!projectId) return;
+    if (!currentProject) return;
     setSaving(true);
     try {
-      await savePage(Number(projectId), toBackendPage(state));
+      await savePage(Number(currentProject.id), toBackendPage(state));
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
@@ -348,38 +342,15 @@ export default function Editor() {
       sections: prev.sections.filter((s) => s.id !== id),
     }));
 
-  // ─── Guard states ────────────────────────────────────────────────────────────
-
-  if (!projectId) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-surface">
-        <p className="text-on-surface-variant text-lg">No hay ningún proyecto seleccionado.</p>
-        <Link to="/create-project" className="bg-primary text-white px-8 py-3 rounded-xl font-bold">
-          Crear proyecto
-        </Link>
-      </div>
-    );
-  }
-
-  if (forbidden) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-surface">
-        <p className="text-2xl font-bold text-primary">Sin acceso</p>
-        <p className="text-on-surface-variant">No tienes permisos para editar este proyecto.</p>
-        <Link to="/directory" className="text-primary font-bold hover:underline">
-          Ir al directorio
-        </Link>
-      </div>
-    );
-  }
-
-  if (loading) {
+  if (loadingProjects || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface">
         <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
   }
+
+  if (!currentProject) return <NoProjectSelected />;
 
   const backendPage = toBackendPage(state);
 
@@ -400,7 +371,7 @@ export default function Editor() {
 
         <div className="flex items-center gap-3">
           <Link
-            to={`/project/${projectId}`}
+            to={`/project/${currentProject.id}`}
             target="_blank"
             className="hidden sm:flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-outline hover:text-primary transition-colors px-4 py-2 rounded-lg hover:bg-surface-container-low"
           >

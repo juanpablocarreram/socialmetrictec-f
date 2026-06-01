@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
 
 import { motion } from 'motion/react';
 import {
@@ -16,6 +15,7 @@ import {
   Check,
   Loader2,
   Camera,
+  Pencil,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import {
@@ -26,8 +26,17 @@ import {
   deleteMetric,
 } from '@/src/services/metricService';
 import { getPhotos, uploadPhoto, deletePhoto, PhotoOut } from '@/src/services/photoService';
+import {
+  getTestimonies,
+  createTestimony,
+  deleteTestimony,
+  patchTestimonyDisplayName,
+  TestimonyOut,
+  CATEGORIES,
+} from '@/src/services/testimonyService';
 import { useAuth } from '../context/AuthContext';
-import { getMyProjects } from '@/src/services/projectService';
+import { useProject } from '../context/ProjectContext';
+import NoProjectSelected from '../components/NoProjectSelected';
 
 interface SubMetricFormField {
   title: string;
@@ -69,41 +78,47 @@ const recentActivity = [
 ];
 
 export default function Dashboard() {
-  const { projectId } = useParams<{ projectId: string }>();
   const { user } = useAuth();
+  const { currentProject, loadingProjects } = useProject();
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [metrics, setMetrics] = useState<MetricOut[]>([]);
   const [photos, setPhotos] = useState<PhotoOut[]>([]);
+  const [testimonies, setTestimonies] = useState<TestimonyOut[]>([]);
   const [loading, setLoading] = useState(true);
-  const [forbidden, setForbidden] = useState(false);
   const [showMetricModal, setShowMetricModal] = useState(false);
   const [metricForm, setMetricForm] = useState<MetricFormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [showTestimonyModal, setShowTestimonyModal] = useState(false);
+  const [testimonyDisplayName, setTestimonyDisplayName] = useState('');
+  const [testimonyContent, setTestimonyContent] = useState('');
+  const [testimonyCategory, setTestimonyCategory] = useState('');
+  const [testimonyTags, setTestimonyTags] = useState<string[]>([]);
+  const [testimonyTagInput, setTestimonyTagInput] = useState('');
+  const [submittingTestimony, setSubmittingTestimony] = useState(false);
+  const [testimonyError, setTestimonyError] = useState('');
+  const [editingNameId, setEditingNameId] = useState<number | null>(null);
+  const [editingNameValue, setEditingNameValue] = useState('');
 
   useEffect(() => {
-    if (!projectId || !user) return;
-    if (!user.is_admin) {
-      getMyProjects().then((mine) => {
-        if (!mine.some((p) => String(p.project_id) === projectId)) setForbidden(true);
-      }).catch(() => setForbidden(true));
-    }
+    if (!currentProject || !user) return;
     setLoading(true);
     Promise.all([
-      getMetrics(Number(projectId)),
-      getPhotos(Number(projectId)),
+      getMetrics(Number(currentProject.id)),
+      getPhotos(Number(currentProject.id)),
+      getTestimonies(Number(currentProject.id)),
     ])
-      .then(([m, p]) => { setMetrics(m); setPhotos(p); })
+      .then(([m, p, t]) => { setMetrics(m); setPhotos(p); setTestimonies(t); })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [projectId]);
+  }, [currentProject?.id]);
 
   const handlePhotoUpload = async (file: File) => {
-    if (!projectId) return;
+    if (!currentProject) return;
     setUploadingPhoto(true);
     try {
-      const photo = await uploadPhoto(Number(projectId), file);
+      const photo = await uploadPhoto(Number(currentProject.id), file);
       setPhotos((prev) => [...prev, photo]);
     } catch (err: any) {
       alert(err?.response?.data?.detail ?? 'Error al subir la foto.');
@@ -113,9 +128,9 @@ export default function Dashboard() {
   };
 
   const handleDeletePhoto = async (photoId: number) => {
-    if (!projectId) return;
+    if (!currentProject) return;
     try {
-      await deletePhoto(Number(projectId), photoId);
+      await deletePhoto(Number(currentProject.id), photoId);
       setPhotos((prev) => prev.filter((p) => p.photo_id !== photoId));
     } catch (err) { console.error(err); }
   };
@@ -141,7 +156,7 @@ export default function Dashboard() {
 
   const handleSubirMetrica = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!projectId) return;
+    if (!currentProject) return;
     setSaving(true);
 
     const data: MetricCreate = {
@@ -155,7 +170,7 @@ export default function Dashboard() {
     };
 
     try {
-      const created = await createMetric(Number(projectId), data);
+      const created = await createMetric(Number(currentProject.id), data);
       setMetrics([...metrics, created]);
       setShowMetricModal(false);
     } catch (err) {
@@ -166,24 +181,102 @@ export default function Dashboard() {
   };
 
   const handleDeleteMetric = async (metricId: number) => {
-    if (!projectId) return;
+    if (!currentProject) return;
     try {
-      await deleteMetric(Number(projectId), metricId);
+      await deleteMetric(Number(currentProject.id), metricId);
       setMetrics(metrics.filter((m) => m.metric_id !== metricId));
     } catch (err) {
       console.error(err);
     }
   };
 
-  if (forbidden) {
+  const addTestimonyTag = () => {
+    const tag = testimonyTagInput.trim();
+    if (!tag || testimonyTags.includes(tag)) return;
+    if (tag.length < 2 || tag.length > 30) {
+      setTestimonyError('Cada etiqueta debe tener entre 2 y 30 caracteres.');
+      return;
+    }
+    if (testimonyTags.length >= 10) {
+      setTestimonyError('Máximo 10 etiquetas.');
+      return;
+    }
+    setTestimonyTags([...testimonyTags, tag]);
+    setTestimonyTagInput('');
+    setTestimonyError('');
+  };
+
+  const resetTestimonyForm = () => {
+    setTestimonyDisplayName('');
+    setTestimonyContent('');
+    setTestimonyCategory('');
+    setTestimonyTags([]);
+    setTestimonyTagInput('');
+    setTestimonyError('');
+  };
+
+  const handleCreateTestimony = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentProject) return;
+    if (testimonyContent.trim().length < 50) {
+      setTestimonyError('El testimonio debe tener al menos 50 caracteres.');
+      return;
+    }
+    setSubmittingTestimony(true);
+    try {
+      const created = await createTestimony(Number(currentProject.id), {
+        content: testimonyContent.trim(),
+        category: testimonyCategory || undefined,
+        tags: testimonyTags,
+        display_name: testimonyDisplayName.trim() || undefined,
+      });
+      setTestimonies([created, ...testimonies]);
+      setShowTestimonyModal(false);
+      resetTestimonyForm();
+    } catch (err: any) {
+      setTestimonyError(err?.response?.data?.detail ?? 'Error al guardar el testimonio.');
+    } finally {
+      setSubmittingTestimony(false);
+    }
+  };
+
+  const handleDeleteTestimony = async (testimonyId: number) => {
+    if (!currentProject) return;
+    try {
+      await deleteTestimony(Number(currentProject.id), testimonyId);
+      setTestimonies(testimonies.filter((t) => t.testimony_id !== testimonyId));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const startEditingName = (t: TestimonyOut) => {
+    setEditingNameId(t.testimony_id);
+    setEditingNameValue(t.display_name ?? t.author_username);
+  };
+
+  const saveDisplayName = async (testimonyId: number) => {
+    if (!currentProject) return;
+    const trimmed = editingNameValue.trim() || null;
+    try {
+      const updated = await patchTestimonyDisplayName(Number(currentProject.id), testimonyId, trimmed);
+      setTestimonies(testimonies.map((t) => t.testimony_id === testimonyId ? updated : t));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setEditingNameId(null);
+    }
+  };
+
+  if (loadingProjects) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-surface">
-        <p className="text-2xl font-bold text-primary">Sin acceso</p>
-        <p className="text-on-surface-variant">No tienes permisos para ver el dashboard de este proyecto.</p>
-        <Link to="/directory" className="text-primary font-bold hover:underline">Ir al directorio</Link>
+      <div className="min-h-screen flex items-center justify-center bg-surface">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
   }
+
+  if (!currentProject) return <NoProjectSelected />;
 
   return (
     <div className="flex flex-col min-h-screen bg-surface p-6 md:p-12 max-w-screen-2xl mx-auto w-full gap-12">
@@ -286,22 +379,120 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Testimonies quick link */}
-      <Link
-        to={`/project/${projectId}/testimonies`}
-        className="flex items-center justify-between p-6 bg-white rounded-2xl border border-outline-variant/10 shadow-sm hover:shadow-md hover:border-primary/20 transition-all group"
-      >
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-primary/5 rounded-xl flex items-center justify-center">
-            <MessageSquare className="w-6 h-6 text-primary" />
-          </div>
-          <div>
-            <h3 className="font-bold text-primary">Testimonios del Proyecto</h3>
-            <p className="text-xs text-on-surface-variant">Documenta experiencias, logros y aprendizajes del equipo</p>
+      {/* Testimonies section */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-primary tracking-tight">Testimonios del Proyecto</h2>
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] text-outline font-bold uppercase tracking-widest">{testimonies.length} testimonio{testimonies.length !== 1 ? 's' : ''}</span>
+            <button
+              onClick={() => { resetTestimonyForm(); setShowTestimonyModal(true); }}
+              className="flex items-center gap-2 px-5 py-2.5 bg-primary/10 text-primary rounded-xl text-xs font-bold hover:bg-primary/20 transition-colors"
+            >
+              <Plus className="w-4 h-4" /> Nuevo Testimonio
+            </button>
           </div>
         </div>
-        <ChevronRight className="w-5 h-5 text-outline group-hover:text-primary transition-colors" />
-      </Link>
+
+        {testimonies.length === 0 ? (
+          <button
+            onClick={() => { resetTestimonyForm(); setShowTestimonyModal(true); }}
+            className="w-full py-12 border-2 border-dashed border-outline-variant/20 rounded-2xl flex flex-col items-center gap-3 text-outline hover:border-primary/30 hover:text-primary transition-all"
+          >
+            <MessageSquare className="w-8 h-8 opacity-40" />
+            <span className="text-xs font-bold uppercase tracking-widest">Documenta experiencias, logros y aprendizajes del equipo</span>
+          </button>
+        ) : (
+          <div className="space-y-4">
+            {testimonies.map((t) => {
+              const displayName = t.display_name ?? t.author_username;
+              const initials = displayName.slice(0, 2).toUpperCase();
+              const canEdit = user?.is_admin || user?.username === t.author_username;
+              const isEditingName = editingNameId === t.testimony_id;
+
+              return (
+                <motion.div
+                  key={t.testimony_id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="relative bg-white rounded-2xl border border-outline-variant/10 shadow-sm group overflow-hidden"
+                >
+                  <div className="absolute top-0 left-0 w-1 h-full bg-primary/20 group-hover:bg-primary/50 transition-colors" />
+
+                  <div className="p-6 pl-8">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                          <span className="text-xs font-extrabold text-primary">{initials}</span>
+                        </div>
+                        <div>
+                          {isEditingName ? (
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                autoFocus
+                                value={editingNameValue}
+                                onChange={(e) => setEditingNameValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') saveDisplayName(t.testimony_id);
+                                  if (e.key === 'Escape') setEditingNameId(null);
+                                }}
+                                className="text-sm font-bold text-primary bg-surface-container-lowest border border-primary/30 rounded-lg px-2 py-0.5 outline-none focus:ring-2 focus:ring-primary/30 w-44"
+                              />
+                              <button onClick={() => saveDisplayName(t.testimony_id)} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => setEditingNameId(null)} className="p-1 text-outline hover:bg-surface-container-low rounded-lg transition-colors">
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-bold text-primary">{displayName}</p>
+                              {canEdit && (
+                                <button
+                                  onClick={() => startEditingName(t)}
+                                  className="opacity-0 group-hover:opacity-100 p-1 text-outline hover:text-primary transition-all rounded-lg hover:bg-surface-container-low"
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                          <p className="text-[10px] text-outline mt-0.5">{new Date(t.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {t.category && (
+                          <span className="text-[9px] font-bold uppercase tracking-widest bg-primary/5 text-primary px-3 py-1 rounded-full border border-primary/10">{t.category}</span>
+                        )}
+                        {canEdit && (
+                          <button
+                            onClick={() => handleDeleteTestimony(t.testimony_id)}
+                            className="opacity-0 group-hover:opacity-100 p-1.5 text-outline hover:text-error transition-all rounded-lg hover:bg-error/5"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <p className="text-sm text-on-surface-variant leading-relaxed line-clamp-4 italic">"{t.content}"</p>
+
+                    {t.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-4">
+                        {t.tags.map((tag) => (
+                          <span key={tag} className="text-[9px] font-bold px-2.5 py-1 bg-surface-container-low text-outline rounded-full">{tag}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
         <div className="lg:col-span-8 space-y-8">
@@ -391,6 +582,153 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {showTestimonyModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowTestimonyModal(false)}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            className="relative w-full max-w-xl bg-white rounded-[32px] shadow-2xl p-10 max-h-[90vh] overflow-y-auto"
+          >
+            <button
+              onClick={() => setShowTestimonyModal(false)}
+              className="absolute top-6 right-6 p-2 text-outline hover:text-primary transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            <div className="space-y-8">
+              <div>
+                <h2 className="text-3xl font-extrabold text-primary tracking-tighter">Nuevo Testimonio</h2>
+                <p className="text-on-surface-variant font-light text-sm mt-2 font-body">
+                  Comparte tu experiencia subjetiva del proyecto en tus propias palabras.
+                </p>
+              </div>
+
+              <form onSubmit={handleCreateTestimony} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Nombre del autor</label>
+                  <input
+                    type="text"
+                    value={testimonyDisplayName}
+                    onChange={(e) => setTestimonyDisplayName(e.target.value)}
+                    placeholder={user?.username ?? 'Nombre visible en el testimonio'}
+                    maxLength={255}
+                    className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-4 text-sm focus:ring-2 focus:ring-primary outline-none transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Tu testimonio</label>
+                    <span className={cn('text-[10px] font-bold', testimonyContent.trim().length < 50 ? 'text-error' : 'text-emerald-600')}>
+                      {testimonyContent.trim().length} / 50 mín · {5000 - testimonyContent.length} restantes
+                    </span>
+                  </div>
+                  <textarea
+                    required
+                    rows={6}
+                    value={testimonyContent}
+                    onChange={(e) => setTestimonyContent(e.target.value)}
+                    maxLength={5000}
+                    placeholder="Describe tu experiencia, logros, retos o aprendizajes en este proyecto..."
+                    className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-4 text-sm focus:ring-2 focus:ring-primary outline-none resize-none leading-relaxed transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Categoría</label>
+                  <div className="flex flex-wrap gap-2">
+                    {CATEGORIES.map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setTestimonyCategory(testimonyCategory === cat ? '' : cat)}
+                        className={cn(
+                          'px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all border',
+                          testimonyCategory === cat
+                            ? 'bg-primary text-white border-primary'
+                            : 'bg-surface-container-low text-on-surface-variant border-transparent hover:border-outline-variant/30',
+                        )}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Etiquetas ({testimonyTags.length}/10)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={testimonyTagInput}
+                      onChange={(e) => setTestimonyTagInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTestimonyTag(); } }}
+                      placeholder="Escribe y presiona Enter o +"
+                      maxLength={30}
+                      disabled={testimonyTags.length >= 10}
+                      className="flex-grow bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary outline-none disabled:opacity-50"
+                    />
+                    <button
+                      type="button"
+                      onClick={addTestimonyTag}
+                      disabled={testimonyTags.length >= 10}
+                      className="p-3 bg-primary/10 text-primary rounded-xl hover:bg-primary/20 transition-colors disabled:opacity-40"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {testimonyTags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {testimonyTags.map((tag) => (
+                        <span key={tag} className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-bold">
+                          {tag}
+                          <button type="button" onClick={() => setTestimonyTags(testimonyTags.filter((t) => t !== tag))}>
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {testimonyError && (
+                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-error font-medium">
+                    {testimonyError}
+                  </motion.p>
+                )}
+
+                <div className="pt-4 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowTestimonyModal(false)}
+                    className="flex-grow py-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-low rounded-2xl transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingTestimony || testimonyContent.trim().length < 50}
+                    className="flex-grow py-4 bg-primary text-white rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    {submittingTestimony ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    Enviar Testimonio
+                  </button>
+                </div>
+              </form>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {showMetricModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">

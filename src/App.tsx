@@ -16,6 +16,7 @@ import CreateProject from './pages/CreateProject';
 import AdminPanel from './pages/AdminPanel';
 import TestimonyForm from './pages/TestimonyForm';
 import {AuthProvider, useAuth} from './context/AuthContext'
+import { ProjectProvider } from './context/ProjectContext'
 
 function AppContent() {
   const location = useLocation();
@@ -39,8 +40,8 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/directory" element={<Directory />} />
-          <Route path="/editor/:projectId" element={<Editor />} />
-          <Route path="/dashboard/:projectId" element={<Dashboard />} />
+          <Route path="/editor" element={<Editor />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/login" element={<Login />} />
           <Route path="/project/:id" element={<ProjectDetail />} />
           <Route path="/create-project" element={<CreateProject />} />
@@ -57,7 +58,9 @@ export default function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppContent />
+        <ProjectProvider>
+          <AppContent />
+        </ProjectProvider>
       </AuthProvider>
     </Router>
   );

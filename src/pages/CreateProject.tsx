@@ -4,26 +4,32 @@ import { useNavigate } from 'react-router-dom';
 import {
   CloudUpload,
   ChevronLeft,
-  GraduationCap,
-  Stethoscope,
-  Leaf,
-  Scale,
-  RefreshCcw,
-  Cpu,
   Sparkles,
   ArrowRight,
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
-import { createProject } from '@/src/services/projectService';
+import { createProject, formatArea } from '@/src/services/projectService';
+import { useProject } from '../context/ProjectContext';
 
 const STRATEGIC_AREAS = [
-  { label: 'Educación', value: 'educacion', icon: GraduationCap, color: 'bg-blue-50 text-blue-600 border-blue-100' },
-  { label: 'Salud', value: 'salud', icon: Stethoscope, color: 'bg-rose-50 text-rose-600 border-rose-100' },
-  { label: 'Medio Ambiente', value: 'medio_ambiente', icon: Leaf, color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
-  { label: 'Justicia Social', value: 'justicia_social', icon: Scale, color: 'bg-amber-50 text-amber-600 border-amber-100' },
-  { label: 'Economía Circular', value: 'economia_circular', icon: RefreshCcw, color: 'bg-indigo-50 text-indigo-600 border-indigo-100' },
-  { label: 'Tecnología Social', value: 'tecnologia_social', icon: Cpu, color: 'bg-violet-50 text-violet-600 border-violet-100' },
+  { label: 'Fin de la pobreza',             value: 'ods_1',  img: '/sdg/ods-1.jpg' },
+  { label: 'Hambre cero',                   value: 'ods_2',  img: '/sdg/ods-2.jpg' },
+  { label: 'Salud y bienestar',             value: 'ods_3',  img: '/sdg/ods-3.jpg' },
+  { label: 'Educación de calidad',          value: 'ods_4',  img: '/sdg/ods-4.jpg' },
+  { label: 'Igualdad de género',            value: 'ods_5',  img: '/sdg/ods-5.jpg' },
+  { label: 'Agua limpia y saneamiento',     value: 'ods_6',  img: '/sdg/ods-6.jpg' },
+  { label: 'Energía asequible',             value: 'ods_7',  img: '/sdg/ods-7.jpg' },
+  { label: 'Trabajo decente',               value: 'ods_8',  img: '/sdg/ods-8.jpg' },
+  { label: 'Industria e infraestructura',   value: 'ods_9',  img: '/sdg/ods-9.jpg' },
+  { label: 'Reducción de desigualdades',    value: 'ods_10', img: '/sdg/ods-10.jpg' },
+  { label: 'Ciudades sostenibles',          value: 'ods_11', img: '/sdg/ods-11.jpg' },
+  { label: 'Producción responsable',        value: 'ods_12', img: '/sdg/ods-12.jpg' },
+  { label: 'Acción por el clima',           value: 'ods_13', img: '/sdg/ods-13.jpg' },
+  { label: 'Vida submarina',                value: 'ods_14', img: '/sdg/ods-14.jpg' },
+  { label: 'Vida de ecosistemas terrestres',value: 'ods_15', img: '/sdg/ods-15.jpg' },
+  { label: 'Paz, justicia e instituciones', value: 'ods_16', img: '/sdg/ods-16.jpg' },
+  { label: 'Alianzas para los objetivos',   value: 'ods_17', img: '/sdg/ods-17.jpg' },
 ];
 
 const DESC_MIN = 100;
@@ -31,6 +37,7 @@ const DESC_MAX = 500;
 
 export default function CreateProject() {
   const navigate = useNavigate();
+  const { setCurrentProject } = useProject();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
@@ -38,7 +45,7 @@ export default function CreateProject() {
     description: '',
     objetivo: '',
     localidad: '',
-    area: 'educacion',
+    area: 'ods_1',
     image: '',
   });
 
@@ -65,7 +72,13 @@ export default function CreateProject() {
         objetivo: formData.objetivo || undefined,
         localidad: formData.localidad || undefined,
       });
-      navigate(`/editor/${project.project_id}`);
+      setCurrentProject({
+        id: String(project.project_id),
+        name: project.project_name,
+        image: project.cover_image_url,
+        area: formatArea(project.impact_area),
+      });
+      navigate('/editor');
     } catch (err: any) {
       setError(err?.response?.data?.detail ?? 'Error al crear el proyecto. Intenta de nuevo.');
     } finally {
@@ -194,32 +207,34 @@ export default function CreateProject() {
 
             <div className="space-y-6">
               <label className="text-[10px] font-bold text-outline uppercase tracking-widest">
-                Selecciona el Área de Impacto
+                Selecciona el ODS
               </label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                 {STRATEGIC_AREAS.map((area) => (
                   <button
                     key={area.value}
                     type="button"
                     onClick={() => setFormData({ ...formData, area: area.value })}
                     className={cn(
-                      'flex flex-col items-center gap-3 p-6 rounded-2xl transition-all border group relative overflow-hidden',
+                      'flex flex-col items-center gap-2 p-3 rounded-2xl transition-all border-2 group relative overflow-hidden',
                       formData.area === area.value
-                        ? 'bg-primary text-white border-primary shadow-xl scale-[1.02]'
-                        : 'bg-white text-on-surface-variant border-outline-variant/20 hover:border-primary/50 hover:bg-surface-container-lowest',
+                        ? 'border-primary shadow-xl scale-[1.02] bg-primary/5'
+                        : 'border-transparent bg-white hover:border-primary/30 hover:shadow-md',
                     )}
                   >
-                    <div
-                      className={cn(
-                        'w-12 h-12 rounded-full flex items-center justify-center transition-colors shadow-inner',
-                        formData.area === area.value ? 'bg-white/20' : area.color,
-                      )}
-                    >
-                      <area.icon className="w-6 h-6" />
-                    </div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-center">{area.label}</span>
+                    <img
+                      src={area.img}
+                      alt={area.label}
+                      className="w-full aspect-square rounded-xl object-cover"
+                    />
+                    <span className={cn(
+                      'text-[10px] font-bold uppercase tracking-wider text-center leading-tight',
+                      formData.area === area.value ? 'text-primary' : 'text-on-surface-variant',
+                    )}>
+                      {area.label}
+                    </span>
                     {formData.area === area.value && (
-                      <motion.div layoutId="active-area" className="absolute bottom-0 left-0 right-0 h-1 bg-white" />
+                      <motion.div layoutId="active-area" className="absolute bottom-0 left-0 right-0 h-1 bg-primary" />
                     )}
                   </button>
                 ))}

@@ -12,10 +12,16 @@ import {
   AlertCircle,
   Loader2,
   Download,
+  Pencil,
+  KeyRound,
+  FolderOpen,
+  Plus,
+  Minus,
 } from 'lucide-react';
 import api from '../lib/axios';
 import { cn } from '@/src/lib/utils';
 import { exportTestimoniesCSV } from '@/src/services/testimonyService';
+import { type ProjectSummary } from '@/src/services/projectService';
 
 interface User {
   username: string;
@@ -30,6 +36,8 @@ interface UserCreateForm {
   confirmPassword: string;
 }
 
+type EditTab = 'profile' | 'password' | 'projects';
+
 const EMPTY_FORM: UserCreateForm = { username: '', email: '', password: '', confirmPassword: '' };
 
 export default function AdminPanel() {
@@ -43,11 +51,29 @@ export default function AdminPanel() {
   const [deleting, setDeleting] = useState(false);
   const [exportingCSV, setExportingCSV] = useState(false);
 
+  const [userToEdit, setUserToEdit] = useState<User | null>(null);
+  const [editTab, setEditTab] = useState<EditTab>('profile');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+  const [editConfirmPassword, setEditConfirmPassword] = useState('');
+  const [editError, setEditError] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [userProjects, setUserProjects] = useState<ProjectSummary[]>([]);
+  const [allProjects, setAllProjects] = useState<ProjectSummary[]>([]);
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [assigningProject, setAssigningProject] = useState(false);
+
   useEffect(() => {
     api.get('/user/users-preview')
       .then((res) => setUsers(res.data))
       .catch(console.error);
   }, []);
+
+  useEffect(() => {
+    if (editTab !== 'projects' || !userToEdit || projectsLoaded) return;
+    loadUserProjects(userToEdit.username);
+  }, [editTab, userToEdit, projectsLoaded]);
 
   const filteredUsers = users.filter(
     (u) =>
@@ -55,10 +81,134 @@ export default function AdminPanel() {
       u.email.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
+  const unassignedProjects = allProjects.filter(
+    (p) => !userProjects.some((up) => up.project_id === p.project_id),
+  );
+
   const openAddModal = () => {
     setNewUser(EMPTY_FORM);
     setFormError('');
     setShowAddModal(true);
+  };
+
+  const openEditModal = (user: User) => {
+    setUserToEdit(user);
+    setEditTab('profile');
+    setEditEmail(user.email);
+    setEditPassword('');
+    setEditConfirmPassword('');
+    setEditError('');
+    setEditSaving(false);
+    setProjectsLoaded(false);
+    setUserProjects([]);
+    setAllProjects([]);
+    setSelectedProjectId('');
+  };
+
+  const closeEditModal = () => {
+    setUserToEdit(null);
+    setEditError('');
+  };
+
+  const switchTab = (tab: EditTab) => {
+    setEditTab(tab);
+    setEditError('');
+  };
+
+  const loadUserProjects = async (username: string) => {
+    try {
+      const [userRes, allRes] = await Promise.all([
+        api.get(`/user/${username}/projects`),
+        api.get('/project/listpreview'),
+      ]);
+      const assigned: ProjectSummary[] = userRes.data;
+      const all: ProjectSummary[] = allRes.data;
+      setUserProjects(assigned);
+      setAllProjects(all);
+      const firstUnassigned = all.find((p) => !assigned.some((up) => up.project_id === p.project_id));
+      setSelectedProjectId(firstUnassigned ? String(firstUnassigned.project_id) : '');
+      setProjectsLoaded(true);
+    } catch {
+      setEditError('No se pudieron cargar los proyectos.');
+    }
+  };
+
+  const saveProfile = async () => {
+    if (!userToEdit) return;
+    if (!editEmail.trim()) {
+      setEditError('El correo es requerido.');
+      return;
+    }
+    setEditError('');
+    setEditSaving(true);
+    try {
+      const res = await api.patch(`/user/${userToEdit.username}`, { email: editEmail });
+      setUsers(users.map((u) => (u.username === userToEdit.username ? { ...u, email: res.data.email } : u)));
+      setUserToEdit({ ...userToEdit, email: res.data.email });
+    } catch (err: any) {
+      setEditError(err?.response?.data?.detail ?? 'Error al guardar el perfil.');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const savePassword = async () => {
+    if (!userToEdit) return;
+    if (!editPassword) {
+      setEditError('Escribe la nueva contraseña.');
+      return;
+    }
+    if (editPassword.length < 6) {
+      setEditError('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+    if (editPassword !== editConfirmPassword) {
+      setEditError('Las contraseñas no coinciden.');
+      return;
+    }
+    setEditError('');
+    setEditSaving(true);
+    try {
+      await api.patch(`/user/${userToEdit.username}/password`, { new_password: editPassword });
+      setEditPassword('');
+      setEditConfirmPassword('');
+    } catch (err: any) {
+      setEditError(err?.response?.data?.detail ?? 'Error al cambiar la contraseña.');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const assignProject = async () => {
+    if (!userToEdit || !selectedProjectId) return;
+    setAssigningProject(true);
+    setEditError('');
+    try {
+      await api.post(`/user/${userToEdit.username}/projects/${selectedProjectId}`);
+      const added = allProjects.find((p) => p.project_id === Number(selectedProjectId));
+      if (added) {
+        const updated = [...userProjects, added];
+        setUserProjects(updated);
+        const nextUnassigned = allProjects.find(
+          (p) => !updated.some((up) => up.project_id === p.project_id),
+        );
+        setSelectedProjectId(nextUnassigned ? String(nextUnassigned.project_id) : '');
+      }
+    } catch (err: any) {
+      setEditError(err?.response?.data?.detail ?? 'Error al asignar el proyecto.');
+    } finally {
+      setAssigningProject(false);
+    }
+  };
+
+  const removeProject = async (projectId: number) => {
+    if (!userToEdit) return;
+    try {
+      await api.delete(`/user/${userToEdit.username}/projects/${projectId}`);
+      setUserProjects(userProjects.filter((p) => p.project_id !== projectId));
+    } catch (err: any) {
+      setEditError(err?.response?.data?.detail ?? 'Error al quitar el proyecto.');
+    }
   };
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -85,8 +235,7 @@ export default function AdminPanel() {
         email: newUser.email,
         password: newUser.password,
       });
-      const created: User = { username: newUser.username, email: newUser.email, is_admin: false };
-      setUsers([created, ...users]);
+      setUsers([{ username: newUser.username, email: newUser.email, is_admin: false }, ...users]);
       setShowAddModal(false);
     } catch (err: any) {
       setFormError(err?.response?.data?.detail ?? 'Error al crear el usuario.');
@@ -221,14 +370,26 @@ export default function AdminPanel() {
                         </div>
                       </td>
                       <td className="px-8 py-6 text-right">
-                        {!user.is_admin && (
-                          <button
-                            onClick={() => setUserToDelete(user)}
-                            className="p-2 text-outline-variant hover:text-error hover:bg-error/5 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
+                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {!user.is_admin && (
+                            <>
+                              <button
+                                onClick={() => openEditModal(user)}
+                                className="p-2 text-outline-variant hover:text-primary hover:bg-primary/5 rounded-lg transition-all"
+                                title="Editar"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => setUserToDelete(user)}
+                                className="p-2 text-outline-variant hover:text-error hover:bg-error/5 rounded-lg transition-all"
+                                title="Eliminar"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </motion.tr>
                   ))}
@@ -248,6 +409,7 @@ export default function AdminPanel() {
         </div>
       </main>
 
+      {/* Modal: Añadir Líder */}
       {showAddModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-12">
           <motion.div
@@ -355,6 +517,192 @@ export default function AdminPanel() {
         </div>
       )}
 
+      {/* Modal: Editar Líder */}
+      {userToEdit && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-12">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            onClick={closeEditModal}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="relative w-full max-w-lg bg-white rounded-[32px] shadow-2xl overflow-hidden"
+          >
+            <div className="p-8 pb-0">
+              <button onClick={closeEditModal} className="absolute top-6 right-6 p-2 text-outline hover:text-primary">
+                <X className="w-6 h-6" />
+              </button>
+              <h2 className="text-3xl font-extrabold text-primary tracking-tighter">{userToEdit.username}</h2>
+              <p className="text-on-surface-variant font-light text-sm mt-1">{userToEdit.email}</p>
+
+              <div className="flex gap-1 mt-6 border-b border-outline-variant/10">
+                {([
+                  { id: 'profile',  label: 'Perfil',      Icon: Pencil      },
+                  { id: 'password', label: 'Contraseña',  Icon: KeyRound    },
+                  { id: 'projects', label: 'Proyectos',   Icon: FolderOpen  },
+                ] as { id: EditTab; label: string; Icon: React.ElementType }[]).map(({ id, label, Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => switchTab(id)}
+                    className={cn(
+                      'flex items-center gap-2 px-4 py-3 text-[10px] font-bold uppercase tracking-widest border-b-2 -mb-px transition-colors',
+                      editTab === id
+                        ? 'border-primary text-primary'
+                        : 'border-transparent text-outline hover:text-on-surface-variant',
+                    )}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-8 space-y-6">
+              {editTab === 'profile' && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-outline uppercase tracking-widest px-1">
+                      Correo Electrónico
+                    </label>
+                    <input
+                      type="email"
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(e.target.value)}
+                      className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-4 text-sm focus:ring-2 focus:ring-primary outline-none"
+                      placeholder="correo@ejemplo.com"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {editTab === 'password' && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-outline uppercase tracking-widest px-1">
+                      Nueva Contraseña
+                    </label>
+                    <input
+                      type="password"
+                      value={editPassword}
+                      onChange={(e) => setEditPassword(e.target.value)}
+                      className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-4 text-sm focus:ring-2 focus:ring-primary outline-none"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-outline uppercase tracking-widest px-1">
+                      Confirmar Contraseña
+                    </label>
+                    <input
+                      type="password"
+                      value={editConfirmPassword}
+                      onChange={(e) => setEditConfirmPassword(e.target.value)}
+                      className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-4 text-sm focus:ring-2 focus:ring-primary outline-none"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {editTab === 'projects' && (
+                <div className="space-y-4">
+                  {!projectsLoaded ? (
+                    <div className="flex items-center justify-center py-8 text-outline">
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {userProjects.length === 0 && (
+                          <p className="text-xs text-outline italic text-center py-4">Sin proyectos asignados.</p>
+                        )}
+                        {userProjects.map((project) => (
+                          <div
+                            key={project.project_id}
+                            className="flex items-center justify-between bg-surface-container-lowest rounded-xl px-4 py-3 border border-outline-variant/10"
+                          >
+                            <span className="text-sm font-medium text-primary truncate">{project.project_name}</span>
+                            <button
+                              onClick={() => removeProject(project.project_id)}
+                              className="p-1.5 text-outline-variant hover:text-error hover:bg-error/5 rounded-lg transition-all shrink-0 ml-2"
+                              title="Quitar del proyecto"
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      {unassignedProjects.length > 0 && (
+                        <div className="flex gap-2 pt-2">
+                          <select
+                            value={selectedProjectId}
+                            onChange={(e) => setSelectedProjectId(e.target.value)}
+                            className="flex-grow bg-surface-container-lowest border border-outline-variant/20 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary outline-none"
+                          >
+                            {unassignedProjects.map((p) => (
+                              <option key={p.project_id} value={p.project_id}>
+                                {p.project_name}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={assignProject}
+                            disabled={assigningProject}
+                            className="flex items-center gap-2 px-5 py-3 bg-primary text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all disabled:opacity-60"
+                          >
+                            {assigningProject
+                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                              : <Plus className="w-4 h-4" />
+                            }
+                            Asignar
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {editError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-3 bg-red-50 border border-red-200/60 rounded-2xl p-4 text-red-600"
+                >
+                  <AlertCircle className="w-5 h-5 shrink-0" />
+                  <p className="text-xs font-medium tracking-wide">{editError}</p>
+                </motion.div>
+              )}
+
+              {editTab !== 'projects' && (
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={closeEditModal}
+                    className="flex-grow py-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-low rounded-2xl"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={editTab === 'profile' ? saveProfile : savePassword}
+                    disabled={editSaving}
+                    className="flex-grow py-4 bg-primary text-white rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    {editSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    Guardar
+                  </button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Modal: Confirmar Eliminación */}
       {userToDelete && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
           <motion.div

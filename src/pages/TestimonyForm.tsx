@@ -222,7 +222,7 @@ export default function TestimonyForm() {
               <motion.div key={t.testimony_id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="bg-white rounded-2xl p-6 shadow-sm border border-outline-variant/10 relative group">
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <p className="text-sm font-bold text-primary">{t.author_username}</p>
+                    <p className="text-sm font-bold text-primary">{t.display_name ?? t.author_username}</p>
                     <p className="text-[10px] text-outline">{new Date(t.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                   </div>
                   <div className="flex items-center gap-2">

@@ -146,7 +146,7 @@ export default function ProjectDetail() {
                 <motion.div key={t.testimony_id} initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }} className="bg-white rounded-2xl p-6 shadow-sm border border-outline-variant/10">
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <p className="text-sm font-bold text-primary">{t.author_username}</p>
+                      <p className="text-sm font-bold text-primary">{t.display_name ?? t.author_username}</p>
                       <p className="text-[10px] text-outline">{new Date(t.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                     </div>
                     {t.category && <span className="text-[9px] font-bold uppercase tracking-widest bg-primary/5 text-primary px-3 py-1 rounded-full">{t.category}</span>}

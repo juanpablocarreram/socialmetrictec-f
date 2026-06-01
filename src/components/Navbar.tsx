@@ -5,40 +5,17 @@ import { useAuth } from '../context/AuthContext';
 import api from '@/src/lib/axios';
 import { ChevronDown, Plus, Check } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
-import { formatArea, getMyProjects } from '@/src/services/projectService';
+import { useProject } from '../context/ProjectContext';
 
-interface Project {
-  id: string;
-  name: string;
-  image: string;
-  area: string;
-}
 
 export default function Navbar() {
   const location = useLocation();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const { user, logout } = useAuth();
-
-  useEffect(() => {
-    if (!user || user.is_admin) return;
-    getMyProjects()
-      .then((list) => {
-        const mapped: Project[] = list.map((p) => ({
-          id: String(p.project_id),
-          name: p.project_name,
-          image: p.cover_image_url || '',
-          area: formatArea(p.impact_area),
-        }));
-        setProjects(mapped);
-        if (mapped.length > 0) setCurrentProject(mapped[0]);
-      })
-      .catch(() => {});
-  }, [user]);
+  const { projects, currentProject, setCurrentProject } = useProject();
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -56,8 +33,8 @@ export default function Navbar() {
 
   const projectLinks = currentProject
     ? [
-        { name: 'Editor', path: `/editor/${currentProject.id}` },
-        { name: 'Dashboard', path: `/dashboard/${currentProject.id}` },
+        { name: 'Editor',    path: '/editor'    },
+        { name: 'Dashboard', path: '/dashboard' },
       ]
     : [];
 

@@ -14,12 +14,14 @@ export interface TestimonyCreate {
   content: string;
   category?: string;
   tags?: string[];
+  display_name?: string;
 }
 
 export interface TestimonyOut {
   testimony_id: number;
   project_id: number;
   author_username: string;
+  display_name: string | null;
   content: string;
   category: string | null;
   tags: string[];
@@ -33,6 +35,15 @@ export const getTestimonies = async (projectId: number): Promise<TestimonyOut[]>
 
 export const createTestimony = async (projectId: number, data: TestimonyCreate): Promise<TestimonyOut> => {
   const res = await api.post(`/project/${projectId}/testimonies`, data);
+  return res.data;
+};
+
+export const patchTestimonyDisplayName = async (
+  projectId: number,
+  testimonyId: number,
+  displayName: string | null,
+): Promise<TestimonyOut> => {
+  const res = await api.patch(`/project/${projectId}/testimonies/${testimonyId}`, { display_name: displayName });
   return res.data;
 };
 
