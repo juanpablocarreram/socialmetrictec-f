@@ -1,13 +1,16 @@
 import { motion } from 'motion/react';
 import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Mail, Phone, Globe, Linkedin, Instagram, Facebook, Twitter } from 'lucide-react';
 import { getProject } from '@/src/services/pageService';
-import { formatArea } from '@/src/services/projectService';
+import { formatArea, getProjectLeaders, ProjectLeader } from '@/src/services/projectService';
 import { getMetrics, MetricOut } from '@/src/services/metricService';
 import { getPhotos, PhotoOut } from '@/src/services/photoService';
 import { getTestimonies, TestimonyOut } from '@/src/services/testimonyService';
+import { getMilestones, MilestoneOut } from '@/src/services/milestoneService';
 import { PagePreview, type BackendBlock } from '../components/BlockRenderer';
+import ProjectTimeline from '../components/ProjectTimeline';
+import { Flag, CheckCircle2 } from 'lucide-react';
 
 interface PageStyles {
   primaryColor?: string;
@@ -15,12 +18,17 @@ interface PageStyles {
   fontFamily?: string;
 }
 
+const withProtocol = (url?: string) =>
+  !url || /^https?:\/\//i.test(url) ? url : `https://${url}`;
+
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const [project, setProject] = useState<Awaited<ReturnType<typeof getProject>> | null>(null);
   const [metrics, setMetrics] = useState<MetricOut[]>([]);
   const [photos, setPhotos] = useState<PhotoOut[]>([]);
   const [testimonies, setTestimonies] = useState<TestimonyOut[]>([]);
+  const [leaders, setLeaders] = useState<ProjectLeader[]>([]);
+  const [milestones, setMilestones] = useState<MilestoneOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -31,12 +39,16 @@ export default function ProjectDetail() {
       getMetrics(Number(id)),
       getPhotos(Number(id)),
       getTestimonies(Number(id)),
+      getProjectLeaders(Number(id)),
+      getMilestones(Number(id)),
     ])
-      .then(([p, m, ph, t]) => {
+      .then(([p, m, ph, t, l, ms]) => {
         setProject(p);
         setMetrics(m);
         setPhotos(ph);
         setTestimonies(t);
+        setLeaders(l);
+        setMilestones(ms);
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
@@ -58,12 +70,14 @@ export default function ProjectDetail() {
     );
   }
 
-  const page = project.page as { blocks: BackendBlock[]; general_props: { styles?: PageStyles } } | null;
+  const page = project.page as { blocks: BackendBlock[]; general_props: { styles?: PageStyles; edit_log?: string[] } } | null;
   const styles: PageStyles = page?.general_props?.styles ?? {};
   const primaryColor = styles.primaryColor ?? '#002068';
   const secondaryColor = styles.secondaryColor ?? '#525d85';
   const fontFamily = styles.fontFamily ?? 'Manrope';
   const blocks: BackendBlock[] = page?.blocks ?? [];
+  const editLog: string[] = page?.general_props?.edit_log ?? [];
+  const completedMilestones = milestones.filter((m) => m.is_completed);
 
   const defaultHero = (
     <section className="relative h-[70vh] w-full bg-slate-900 overflow-hidden">
@@ -75,17 +89,17 @@ export default function ProjectDetail() {
         />
       )}
       <div
-        className="relative h-full flex flex-col justify-center items-center text-center p-16 bg-gradient-to-b from-transparent via-primary/20 to-primary/80"
+        className="relative h-full flex flex-col justify-center items-center text-center p-6 sm:p-10 md:p-16 bg-gradient-to-b from-transparent via-primary/20 to-primary/80"
         style={{ backgroundColor: project.cover_image_url ? undefined : primaryColor }}
       >
         <span className="text-white/60 font-bold text-xs uppercase tracking-widest mb-4">
           {formatArea(project.impact_area)}
         </span>
-        <h1 className="text-5xl md:text-7xl font-extrabold text-white leading-tight max-w-5xl mb-6 tracking-tighter" style={{ fontFamily }}>
+        <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold text-white leading-tight max-w-5xl mb-6 tracking-tighter break-words" style={{ fontFamily }}>
           {project.project_name}
         </h1>
         {project.description && (
-          <p className="text-xl text-white/80 max-w-3xl font-light leading-relaxed" style={{ fontFamily }}>
+          <p className="text-lg sm:text-xl text-white/80 max-w-3xl font-light leading-relaxed break-words" style={{ fontFamily }}>
             {project.description}
           </p>
         )}
@@ -109,7 +123,7 @@ export default function ProjectDetail() {
       {/* Photo gallery */}
       {photos.length > 0 && (
         <section className="py-16 bg-white">
-          <div className="max-w-6xl mx-auto px-8">
+          <div className="max-w-6xl mx-auto px-5 sm:px-8">
             <h2 className="text-2xl font-bold text-primary tracking-tight mb-8">Galería del Proyecto</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {photos.map((photo, idx) => (
@@ -135,28 +149,172 @@ export default function ProjectDetail() {
 
       {/* Testimonies */}
       {testimonies.length > 0 && (
-        <section className="py-16 bg-surface-container-lowest">
-          <div className="max-w-4xl mx-auto px-8">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-primary tracking-tight">Testimonios</h2>
-              <span className="text-[10px] font-bold text-outline uppercase tracking-widest">{testimonies.length} testimonio{testimonies.length !== 1 ? 's' : ''}</span>
+        <section className="py-20 bg-white">
+          <div className="max-w-5xl mx-auto px-5 sm:px-8">
+            <div className="mb-12 text-center">
+              <span className="text-[10px] font-bold text-outline uppercase tracking-[0.3em]">En sus palabras</span>
+              <h2 className="text-3xl font-extrabold text-primary tracking-tighter mt-2">Testimonios</h2>
             </div>
-            <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {testimonies.map((t, i) => (
-                <motion.div key={t.testimony_id} initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }} className="bg-white rounded-2xl p-6 shadow-sm border border-outline-variant/10">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <p className="text-sm font-bold text-primary">{t.display_name ?? t.author_username}</p>
-                      <p className="text-[10px] text-outline">{new Date(t.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                    </div>
-                    {t.category && <span className="text-[9px] font-bold uppercase tracking-widest bg-primary/5 text-primary px-3 py-1 rounded-full">{t.category}</span>}
-                  </div>
-                  <p className="text-sm text-on-surface-variant leading-relaxed">{t.content}</p>
+                <motion.figure
+                  key={t.testimony_id}
+                  initial={{ opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.07, ease: 'easeOut' }}
+                  className="group relative flex flex-col bg-surface-container-lowest rounded-3xl p-6 sm:p-8 border border-outline-variant/10 hover:border-primary/20 hover:shadow-[0_20px_50px_-25px_rgba(0,32,104,0.3)] transition-all duration-300"
+                >
+                  <span className="absolute top-6 right-7 font-serif text-6xl leading-none text-primary/10 select-none transition-colors group-hover:text-primary/20">&rdquo;</span>
+
+                  {t.category && (
+                    <span className="self-start text-[9px] font-bold uppercase tracking-[0.2em] bg-primary/5 text-primary px-3 py-1.5 rounded-full mb-5">{t.category}</span>
+                  )}
+
+                  <blockquote className="text-[15px] text-on-surface leading-relaxed flex-grow break-words whitespace-pre-line">{t.content}</blockquote>
+
                   {t.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-4">
-                      {t.tags.map((tag) => <span key={tag} className="text-[9px] font-bold px-2 py-0.5 bg-surface-container-low text-outline rounded-full">{tag}</span>)}
+                    <div className="flex flex-wrap gap-2 mt-5">
+                      {t.tags.map((tag) => <span key={tag} className="text-[9px] font-bold px-2.5 py-1 bg-white border border-outline-variant/10 text-outline rounded-full">{tag}</span>)}
                     </div>
                   )}
+
+                  <figcaption className="flex items-center gap-3 mt-7 pt-6 border-t border-outline-variant/10">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <span className="text-xs font-extrabold text-primary">{(t.display_name ?? t.author_username).slice(0, 2).toUpperCase()}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-primary truncate">{t.display_name ?? t.author_username}</p>
+                      <p className="text-[10px] text-outline uppercase tracking-wider font-medium">{new Date(t.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    </div>
+                  </figcaption>
+                </motion.figure>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Equipo / Contacto */}
+      {leaders.length > 0 && (
+        <section className="py-20 bg-surface-container-lowest">
+          <div className="max-w-5xl mx-auto px-5 sm:px-8">
+            <div className="mb-12 text-center">
+              <span className="text-[10px] font-bold text-outline uppercase tracking-[0.3em]">Conoce al equipo</span>
+              <h2 className="text-3xl font-extrabold text-primary tracking-tighter mt-2">Equipo y Contacto</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {leaders.map((leader, i) => {
+                const p = leader.profile ?? {};
+                const socials = [
+                  { url: p.linkedin, icon: Linkedin, label: 'LinkedIn' },
+                  { url: p.instagram, icon: Instagram, label: 'Instagram' },
+                  { url: p.facebook, icon: Facebook, label: 'Facebook' },
+                  { url: p.twitter, icon: Twitter, label: 'X / Twitter' },
+                ].filter((s) => s.url);
+
+                const contacts = [
+                  { href: `mailto:${leader.email}`, icon: Mail, value: leader.email, external: false },
+                  p.phone ? { href: `tel:${p.phone}`, icon: Phone, value: p.phone, external: false } : null,
+                  p.website ? { href: withProtocol(p.website)!, icon: Globe, value: p.website.replace(/^https?:\/\//, ''), external: true } : null,
+                ].filter(Boolean) as { href: string; icon: typeof Mail; value: string; external: boolean }[];
+
+                return (
+                  <motion.article
+                    key={leader.username}
+                    initial={{ opacity: 0, y: 16 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.08, ease: 'easeOut' }}
+                    className="group relative bg-white rounded-3xl border border-outline-variant/10 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_-20px_rgba(0,32,104,0.35)] hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                  >
+                    <div className="h-20 bg-gradient-to-br from-primary to-primary/70 relative">
+                      <div className="absolute inset-0 opacity-[0.15] bg-[radial-gradient(circle_at_top_right,white,transparent_60%)]" />
+                    </div>
+
+                    <div className="px-5 sm:px-7 pb-7">
+                      <div className="flex items-end justify-between gap-3 -mt-10 mb-5">
+                        <div className="w-20 h-20 rounded-2xl bg-white p-1 shadow-lg shrink-0">
+                          <div className="w-full h-full rounded-[14px] bg-primary/10 flex items-center justify-center">
+                            <span className="text-xl font-extrabold text-primary tracking-tight">{leader.username.slice(0, 2).toUpperCase()}</span>
+                          </div>
+                        </div>
+                        {socials.length > 0 && (
+                          <div className="flex flex-wrap justify-end gap-1.5 pb-1">
+                            {socials.map(({ url, icon: Icon, label }) => (
+                              <a
+                                key={label}
+                                href={withProtocol(url)}
+                                target="_blank"
+                                rel="noreferrer"
+                                aria-label={label}
+                                className="w-9 h-9 rounded-xl bg-surface-container-low flex items-center justify-center text-outline hover:bg-primary hover:text-white transition-all duration-200 hover:-translate-y-0.5"
+                              >
+                                <Icon className="w-4 h-4" />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <h3 className="text-lg font-extrabold text-primary tracking-tight">{leader.username}</h3>
+                      <p className="text-[10px] font-bold text-outline uppercase tracking-[0.2em] mt-0.5">Líder del proyecto</p>
+
+                      {p.description && (
+                        <p className="text-sm text-on-surface-variant leading-relaxed mt-4 break-words whitespace-pre-line">{p.description}</p>
+                      )}
+
+                      <div className="mt-6 pt-5 border-t border-outline-variant/10 space-y-1">
+                        {contacts.map(({ href, icon: Icon, value, external }) => (
+                          <a
+                            key={href}
+                            href={href}
+                            {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
+                            className="flex items-center gap-3 -mx-2 px-2 py-2 rounded-xl text-xs text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors group/contact"
+                          >
+                            <span className="w-8 h-8 rounded-lg bg-primary/5 flex items-center justify-center shrink-0 text-primary group-hover/contact:bg-primary group-hover/contact:text-white transition-colors">
+                              <Icon className="w-4 h-4" />
+                            </span>
+                            <span className="truncate font-medium">{value}</span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.article>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Hitos completados */}
+      {completedMilestones.length > 0 && (
+        <section className="py-20 bg-white">
+          <div className="max-w-4xl mx-auto px-5 sm:px-8">
+            <div className="mb-12 text-center">
+              <span className="text-[10px] font-bold text-outline uppercase tracking-[0.3em]">Avances del proyecto</span>
+              <h2 className="text-3xl font-extrabold text-primary tracking-tighter mt-2">Hitos Completados</h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {completedMilestones.map((m, i) => (
+                <motion.div
+                  key={m.milestone_id}
+                  initial={{ opacity: 0, y: 12 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.06 }}
+                  className="flex items-start gap-3 bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant/10"
+                >
+                  <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-primary break-words">{m.title}</p>
+                    {m.completed_at && (
+                      <p className="text-[10px] text-outline uppercase tracking-wider font-medium mt-1">
+                        {new Date(m.completed_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
+                      </p>
+                    )}
+                  </div>
                 </motion.div>
               ))}
             </div>
@@ -164,9 +322,26 @@ export default function ProjectDetail() {
         </section>
       )}
 
+      {/* Línea de tiempo */}
+      <section className="py-20 bg-surface-container-lowest">
+        <div className="max-w-3xl mx-auto px-5 sm:px-8">
+          <div className="mb-12 text-center">
+            <span className="text-[10px] font-bold text-outline uppercase tracking-[0.3em]">Evolución</span>
+            <h2 className="text-3xl font-extrabold text-primary tracking-tighter mt-2">Línea de Tiempo</h2>
+          </div>
+          <ProjectTimeline
+            createdAt={project.created_at}
+            editLog={editLog}
+            testimonies={testimonies}
+            photos={photos}
+            milestones={milestones}
+          />
+        </div>
+      </section>
+
       <footer className="py-24 bg-primary text-white text-center">
-        <div className="max-w-4xl mx-auto px-8 space-y-8">
-          <h2 className="text-4xl font-bold tracking-tighter">SocialMetricTec</h2>
+        <div className="max-w-4xl mx-auto px-5 sm:px-8 space-y-8">
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tighter">SocialMetricTec</h2>
           <p className="text-lg text-white/60 font-light max-w-lg mx-auto">
             Plataforma de curaduría de impacto social para la excelencia académica.
           </p>

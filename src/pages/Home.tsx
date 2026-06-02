@@ -1,32 +1,33 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { ArrowRight, School, HeartPulse, Leaf, Handshake, Landmark, Cpu, CheckCircle2, Users, Globe, Target, BarChart3 } from 'lucide-react';
+import { ArrowRight, HeartPulse, CheckCircle2 } from 'lucide-react';
 import { listProjects, formatArea, ProjectSummary } from '@/src/services/projectService';
 
+const SDG_GOALS = Array.from({ length: 17 }, (_, i) => i + 1);
+
 export default function Home() {
-  const [featuredProjects, setFeaturedProjects] = useState<ProjectSummary[]>([]);
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
 
   useEffect(() => {
     listProjects()
-      .then((all) => setFeaturedProjects(all.slice(0, 4)))
+      .then(setProjects)
       .catch(console.error);
   }, []);
 
-  const metrics = [
-    { label: 'Proyectos Activos', value: '450+', icon: Target },
-    { label: 'Voluntarios Registrados', value: '12k', icon: Users },
-    { label: 'Estados Alcanzados', value: '32', icon: Globe },
-    { label: 'Impacto Directo', value: '8.5m', icon: BarChart3 },
-  ];
+  const featuredProjects = projects.slice(0, 4);
+  const currentYear = new Date().getFullYear();
 
-  const impactAreas = [
-    { title: 'Educación', description: 'Reducción de brechas educativas y fomento de la alfabetización digital.', count: 124, icon: School },
-    { title: 'Salud', description: 'Atención primaria, prevención y bienestar emocional en comunidades.', count: 98, icon: HeartPulse },
-    { title: 'Medio Ambiente', description: 'Regeneración ecológica, gestión de agua y energías limpias.', count: 76, icon: Leaf },
-    { title: 'Justicia Social', description: 'Derechos humanos, equidad de género e inclusión de minorías.', count: 52, icon: Handshake },
-    { title: 'Economía Circular', description: 'Modelos de negocio sostenibles y cooperativas locales.', count: 41, icon: Landmark },
-    { title: 'Tecnología Social', description: 'Innovación aplicada a retos de movilidad y habitabilidad.', count: 33, icon: Cpu },
+  const projectsPerArea = projects.reduce<Record<string, number>>((acc, project) => {
+    acc[project.impact_area] = (acc[project.impact_area] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const metrics = [
+    { label: 'Iniciativas Documentadas', value: projects.length },
+    { label: 'Proyectos Activos', value: projects.filter((p) => p.is_active).length },
+    { label: 'Áreas de Impacto (ODS)', value: new Set(projects.map((p) => p.impact_area)).size },
+    { label: `Publicados en ${currentYear}`, value: projects.filter((p) => new Date(p.created_at).getFullYear() === currentYear).length },
   ];
 
   return (
@@ -167,25 +168,51 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Impact Areas */}
+      {/* Impact Areas (ODS) */}
       <section className="bg-surface-container-low py-24 md:py-32 px-6 md:px-12">
         <div className="max-w-screen-2xl mx-auto">
-          <div className="text-center mb-24 space-y-4">
-            <h2 className="text-4xl font-bold text-primary tracking-tighter">Áreas de Impacto Estratégico</h2>
-            <p className="text-on-surface-variant max-w-2xl mx-auto">Nuestra labor se alinea con los Objetivos de Desarrollo Sostenible (ODS) para generar un cambio sistémico.</p>
+          <div className="text-center mb-16 space-y-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-primary tracking-tighter">Áreas de Impacto Estratégico</h2>
+            <p className="text-on-surface-variant max-w-2xl mx-auto">Nuestra labor se alinea con los 17 Objetivos de Desarrollo Sostenible (ODS) de la ONU para generar un cambio sistémico.</p>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-outline-variant/20 overflow-hidden rounded-2xl border border-outline-variant/20">
-            {impactAreas.map((area, idx) => (
-              <div key={idx} className="bg-surface py-16 px-12 hover:bg-surface-container-lowest transition-all group cursor-default">
-                <div className="w-12 h-12 bg-primary-container/10 flex items-center justify-center rounded-full mb-8 group-hover:bg-primary-container transition-colors">
-                  <area.icon className="w-6 h-6 text-primary-container group-hover:text-on-primary transition-colors" />
-                </div>
-                <h3 className="text-2xl font-bold text-primary mb-4">{area.title}</h3>
-                <p className="text-on-surface-variant text-sm leading-relaxed mb-6">{area.description}</p>
-                <span className="text-xs font-bold text-primary-container tracking-widest uppercase">{area.count} Proyectos</span>
-              </div>
-            ))}
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
+            {SDG_GOALS.map((goal, idx) => {
+              const area = `ods_${goal}`;
+              const count = projectsPerArea[area] ?? 0;
+              return (
+                <motion.div
+                  key={goal}
+                  initial={{ opacity: 0, scale: 0.92 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: (idx % 6) * 0.05 }}
+                >
+                  <Link
+                    to="/directory"
+                    aria-label={formatArea(area)}
+                    className="block relative aspect-square rounded-xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                  >
+                    <img
+                      src={`/sdg/ods-${goal}.jpg`}
+                      alt={formatArea(area)}
+                      className={count > 0
+                        ? 'w-full h-full object-cover'
+                        : 'w-full h-full object-cover opacity-55 group-hover:opacity-100 transition-opacity'}
+                    />
+                    {count > 0 && (
+                      <span className="absolute top-2 right-2 min-w-6 h-6 px-2 rounded-full bg-white/95 text-primary text-xs font-extrabold flex items-center justify-center shadow-sm">
+                        {count}
+                      </span>
+                    )}
+                    <div className="absolute inset-0 bg-primary/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-center p-3">
+                      <span className="text-white text-sm font-bold leading-tight">{count} Proyecto{count !== 1 ? 's' : ''}</span>
+                      <span className="text-white/70 text-[10px] uppercase tracking-widest font-bold mt-1">Ver directorio</span>
+                    </div>
+                  </Link>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>

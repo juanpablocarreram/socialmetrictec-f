@@ -4,6 +4,7 @@ import { Landmark, ArrowRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext'; // Tu contexto
 import api from '../lib/axios';
+import PasswordInput from '../components/PasswordInput';
 
 const LoginForm = () => {
   const [formData, setFormData] = useState({ username: '', password: '' });
@@ -82,9 +83,8 @@ const LoginForm = () => {
           <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
             Contraseña
           </label>
-          <input 
+          <PasswordInput
             required
-            type="password" 
             value={formData.password}
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             placeholder="........"

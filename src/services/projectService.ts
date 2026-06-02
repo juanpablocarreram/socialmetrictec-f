@@ -1,4 +1,11 @@
 import api from '@/src/lib/axios';
+import { UserProfile } from './userService';
+
+export interface ProjectLeader {
+  username: string;
+  email: string;
+  profile: UserProfile | null;
+}
 
 export interface ProjectSummary {
   project_id: number;
@@ -59,5 +66,10 @@ export const getMyProjects = async (): Promise<ProjectSummary[]> => {
 
 export const createProject = async (data: ProjectCreate): Promise<ProjectFull> => {
   const res = await api.post('/project/create', data);
+  return res.data;
+};
+
+export const getProjectLeaders = async (projectId: number): Promise<ProjectLeader[]> => {
+  const res = await api.get(`/project/${projectId}/leaders`);
   return res.data;
 };

@@ -20,7 +20,8 @@ import {
 } from 'lucide-react';
 import api from '../lib/axios';
 import { cn } from '@/src/lib/utils';
-import { exportTestimoniesCSV } from '@/src/services/testimonyService';
+import PasswordInput from '../components/PasswordInput';
+import { exportTestimoniesCSV, getExportLog, ExportLogEntry } from '@/src/services/testimonyService';
 import { type ProjectSummary } from '@/src/services/projectService';
 
 interface User {
@@ -50,6 +51,34 @@ export default function AdminPanel() {
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [exportingCSV, setExportingCSV] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportDateFrom, setExportDateFrom] = useState('');
+  const [exportDateTo, setExportDateTo] = useState('');
+  const [exportLog, setExportLog] = useState<ExportLogEntry[]>([]);
+
+  const openExportModal = async () => {
+    setShowExportModal(true);
+    try {
+      setExportLog(await getExportLog());
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleExport = async () => {
+    setExportingCSV(true);
+    try {
+      await exportTestimoniesCSV({
+        dateFrom: exportDateFrom || undefined,
+        dateTo: exportDateTo || undefined,
+      });
+      setExportLog(await getExportLog());
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setExportingCSV(false);
+    }
+  };
 
   const [userToEdit, setUserToEdit] = useState<User | null>(null);
   const [editTab, setEditTab] = useState<EditTab>('profile');
@@ -290,11 +319,10 @@ export default function AdminPanel() {
 
             <div className="flex gap-3">
               <button
-                onClick={async () => { setExportingCSV(true); await exportTestimoniesCSV(); setExportingCSV(false); }}
-                disabled={exportingCSV}
-                className="flex items-center gap-2 px-6 py-4 border border-outline-variant/20 text-on-surface-variant rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-surface-container-low transition-all disabled:opacity-50"
+                onClick={openExportModal}
+                className="flex items-center gap-2 px-6 py-4 border border-outline-variant/20 text-on-surface-variant rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-surface-container-low transition-all"
               >
-                {exportingCSV ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                <Download className="w-4 h-4" />
                 Exportar CSV
               </button>
               <button
@@ -461,9 +489,8 @@ export default function AdminPanel() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold text-outline uppercase tracking-widest px-1">Contraseña</label>
-                    <input
+                    <PasswordInput
                       required
-                      type="password"
                       value={newUser.password}
                       onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                       className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-4 text-sm focus:ring-2 focus:ring-primary outline-none"
@@ -472,9 +499,8 @@ export default function AdminPanel() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold text-outline uppercase tracking-widest px-1">Confirmar</label>
-                    <input
+                    <PasswordInput
                       required
-                      type="password"
                       value={newUser.confirmPassword}
                       onChange={(e) => setNewUser({ ...newUser, confirmPassword: e.target.value })}
                       className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-4 text-sm focus:ring-2 focus:ring-primary outline-none"
@@ -585,8 +611,7 @@ export default function AdminPanel() {
                     <label className="text-[10px] font-bold text-outline uppercase tracking-widest px-1">
                       Nueva Contraseña
                     </label>
-                    <input
-                      type="password"
+                    <PasswordInput
                       value={editPassword}
                       onChange={(e) => setEditPassword(e.target.value)}
                       className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-4 text-sm focus:ring-2 focus:ring-primary outline-none"
@@ -597,8 +622,7 @@ export default function AdminPanel() {
                     <label className="text-[10px] font-bold text-outline uppercase tracking-widest px-1">
                       Confirmar Contraseña
                     </label>
-                    <input
-                      type="password"
+                    <PasswordInput
                       value={editConfirmPassword}
                       onChange={(e) => setEditConfirmPassword(e.target.value)}
                       className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-4 text-sm focus:ring-2 focus:ring-primary outline-none"
@@ -752,6 +776,87 @@ export default function AdminPanel() {
                 >
                   {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirmar Eliminación'}
                 </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {showExportModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            onClick={() => setShowExportModal(false)}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="relative w-full max-w-lg bg-white rounded-[32px] shadow-2xl p-10 max-h-[90vh] overflow-y-auto"
+          >
+            <button onClick={() => setShowExportModal(false)} className="absolute top-6 right-6 p-2 text-outline hover:text-primary transition-colors">
+              <X className="w-6 h-6" />
+            </button>
+
+            <div className="space-y-8">
+              <div>
+                <h2 className="text-3xl font-extrabold text-primary tracking-tighter">Exportar Testimonios</h2>
+                <p className="text-on-surface-variant font-light text-sm mt-2 font-body">
+                  Descarga un CSV compatible con Excel y Google Sheets. Opcionalmente filtra por rango de fechas.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Desde</label>
+                  <input
+                    type="date"
+                    value={exportDateFrom}
+                    onChange={(e) => setExportDateFrom(e.target.value)}
+                    className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-4 text-sm focus:ring-2 focus:ring-primary outline-none"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Hasta</label>
+                  <input
+                    type="date"
+                    value={exportDateTo}
+                    onChange={(e) => setExportDateTo(e.target.value)}
+                    className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-4 text-sm focus:ring-2 focus:ring-primary outline-none"
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={handleExport}
+                disabled={exportingCSV}
+                className="w-full py-4 bg-primary text-white rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {exportingCSV ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                Descargar CSV
+              </button>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Historial de exportaciones</label>
+                {exportLog.length === 0 ? (
+                  <p className="text-xs text-outline italic">Aún no hay exportaciones registradas.</p>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {exportLog.map((entry) => (
+                      <div key={entry.export_id} className="flex items-center justify-between bg-surface-container-low rounded-xl px-4 py-3">
+                        <div>
+                          <p className="text-xs font-bold text-primary">{entry.exported_by}</p>
+                          <p className="text-[10px] text-outline">
+                            {new Date(entry.created_at).toLocaleString('es-MX')}
+                            {(entry.date_from || entry.date_to) && ` · ${entry.date_from ?? '…'} → ${entry.date_to ?? '…'}`}
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-bold text-outline uppercase tracking-widest">{entry.row_count} filas</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>

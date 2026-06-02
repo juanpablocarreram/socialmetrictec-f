@@ -11,10 +11,11 @@ import Directory from './pages/Directory';
 import Editor from './pages/Editor';
 import Login from './pages/Login';
 import ProjectDetail from './pages/ProjectDetail';
-import Dashboard from './pages/Dashboard';
 import CreateProject from './pages/CreateProject';
 import AdminPanel from './pages/AdminPanel';
 import TestimonyForm from './pages/TestimonyForm';
+import Profile from './pages/Profile';
+import ProjectReport from './pages/ProjectReport';
 import {AuthProvider, useAuth} from './context/AuthContext'
 import { ProjectProvider } from './context/ProjectContext'
 
@@ -41,12 +42,13 @@ function AppContent() {
           <Route path="/" element={<Home />} />
           <Route path="/directory" element={<Directory />} />
           <Route path="/editor" element={<Editor />} />
-          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/login" element={<Login />} />
           <Route path="/project/:id" element={<ProjectDetail />} />
           <Route path="/create-project" element={<CreateProject />} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/project/:projectId/testimonies" element={<TestimonyForm />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/project/:projectId/report" element={<ProjectReport />} />
         </Routes>
       </main>
       {!isLoginPage && <Footer />}

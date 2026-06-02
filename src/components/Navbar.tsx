@@ -32,10 +32,7 @@ export default function Navbar() {
   ];
 
   const projectLinks = currentProject
-    ? [
-        { name: 'Editor',    path: '/editor'    },
-        { name: 'Dashboard', path: '/dashboard' },
-      ]
+    ? [{ name: 'Editor', path: '/editor' }]
     : [];
 
   const allLinks = [
@@ -46,7 +43,7 @@ export default function Navbar() {
 
   const visibleLinks = allLinks.filter(({ name }) => {
     if (name === 'Admin') return user?.is_admin;
-    if (name === 'Editor' || name === 'Dashboard') return user && !user.is_admin;
+    if (name === 'Editor') return user && !user.is_admin;
     return true;
   });
 
@@ -231,6 +228,13 @@ export default function Navbar() {
                   </div>
 
                   <div className="space-y-1">
+                    <Link
+                      to="/profile"
+                      onClick={() => setIsProfileOpen(false)}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-all"
+                    >
+                      <span className="text-[10px] font-bold uppercase tracking-widest">Editar Perfil</span>
+                    </Link>
                     <div className="h-px bg-outline-variant/5 my-1" />
                     <Link
                       to="/login"

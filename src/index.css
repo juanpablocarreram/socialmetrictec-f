@@ -59,3 +59,23 @@
 .tonal-card:hover {
   @apply bg-surface-container-lowest shadow-lg -translate-y-1;
 }
+
+/* Print: aislar el reporte imprimible del resto de la UI */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #report-printable,
+  #report-printable * {
+    visibility: visible;
+  }
+  #report-printable {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
