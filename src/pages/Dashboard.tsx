@@ -268,7 +268,7 @@ export default function Dashboard() {
           </div>
         </div>
         {photos.length === 0 ? (
-          <button onClick={() => photoInputRef.current?.click()} className="w-full py-12 border-2 border-dashed border-outline-variant/20 rounded-2xl flex flex-col items-center gap-3 text-outline hover:border-primary/30 hover:text-primary transition-all">
+          <button onClick={() => photoInputRef.current?.click()} className="w-full py-12 border-2 border-dashed border-outline-variant/20 rounded-2xl flex flex-col items-center gap-3 text-outline hover:border-primary/30 hover:text-primary transition-all cursor-pointer">
             <Camera className="w-8 h-8 opacity-40" />
             <span className="text-xs font-bold uppercase tracking-widest">Sube hasta 10 fotos del proyecto (JPG/PNG, máx. 5 MB)</span>
           </button>

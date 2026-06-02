@@ -1,15 +1,18 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { ArrowRight, School, HeartPulse, Leaf, Handshake, Landmark, Cpu, CheckCircle2, Users, Globe, Target, BarChart3 } from 'lucide-react';
+import { ArrowRight, School, HeartPulse, Leaf, Handshake, Landmark, Cpu, CheckCircle2, Users, Globe, Target, BarChart3, Coins,Utensils,Heart,GraduationCap,Droplet,Sun,Briefcase,TrendingDown,RefreshCcw,Fish,Trees,Scale,Building2 } from 'lucide-react';
 import { listProjects, formatArea, ProjectSummary } from '@/src/services/projectService';
 
 export default function Home() {
   const [featuredProjects, setFeaturedProjects] = useState<ProjectSummary[]>([]);
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
 
   useEffect(() => {
     listProjects()
-      .then((all) => setFeaturedProjects(all.slice(0, 4)))
+      .then((all) => {
+        setProjects(all)
+        setFeaturedProjects(all.slice(0, 4))} )
       .catch(console.error);
   }, []);
 
@@ -20,13 +23,132 @@ export default function Home() {
     { label: 'Impacto Directo', value: '8.5m', icon: BarChart3 },
   ];
 
+  const areaCounts = projects.reduce((acc, project) => {
+    const areaKey = project.impact_area?.toLowerCase() || '';
+    acc[areaKey] = (acc[areaKey] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
   const impactAreas = [
-    { title: 'Educación', description: 'Reducción de brechas educativas y fomento de la alfabetización digital.', count: 124, icon: School },
-    { title: 'Salud', description: 'Atención primaria, prevención y bienestar emocional en comunidades.', count: 98, icon: HeartPulse },
-    { title: 'Medio Ambiente', description: 'Regeneración ecológica, gestión de agua y energías limpias.', count: 76, icon: Leaf },
-    { title: 'Justicia Social', description: 'Derechos humanos, equidad de género e inclusión de minorías.', count: 52, icon: Handshake },
-    { title: 'Economía Circular', description: 'Modelos de negocio sostenibles y cooperativas locales.', count: 41, icon: Landmark },
-    { title: 'Tecnología Social', description: 'Innovación aplicada a retos de movilidad y habitabilidad.', count: 33, icon: Cpu },
+    { 
+      title: '1. Fin de la Pobreza', 
+      matchValue: 'ods 1 fin de la pobreza', // Identificador para buscar en el conteo
+      description: 'Programas de apoyo social, generación de ingresos estables y erradicación de vulnerabilidad económica.', 
+      count: areaCounts['ods 1 fin de la pobreza'] || 0, // Si no hay proyectos, pone 0
+      icon: Coins 
+    },
+    { 
+      title: '2. Hambre Cero', 
+      matchValue: 'ods 2 hambre cero',
+      description: 'Seguridad alimentaria, optimización de agricultura sostenible y comedores comunitarios eficientes.', 
+      count: areaCounts['ods 2 hambre cero'] || 0, 
+      icon: Utensils 
+    },
+    { 
+      title: '3. Salud y Bienestar', 
+      matchValue: 'ods 3 salud y bienestar',
+      description: 'Atención médica primaria, salud mental comunitaria y fomento de estilos de vida saludables.', 
+      count: areaCounts['ods 3 salud y bienestar'] || 0, 
+      icon: Heart 
+    },
+    { 
+      title: '4. Educación de Calidad', 
+      matchValue: 'ods 4 educación de calidad',
+      description: 'Reducción de brechas educativas, regularización académica y fomento de alfabetización digital.', 
+      count: areaCounts['ods 4 educación de calidad'] || 0, 
+      icon: GraduationCap 
+    },
+    { 
+      title: '5. Igualdad de Género', 
+      matchValue: 'ods 5 igualdad de genero',
+      description: 'Prevención de violencia, empoderamiento femenino y equidad de oportunidades en la comunidad.', 
+      count: areaCounts['ods 5 igualdad de genero'] || 0, 
+      icon: Users 
+    },
+    { 
+      title: '6. Agua Limpia y Saneamiento', 
+      matchValue: 'ods 6 agua limpia y saneamiento',
+      description: 'Acceso a agua potable, sistemas de filtración biológica y concientización sobre recursos hídricos.', 
+      count: areaCounts['ods 6 agua limpia y saneamiento'] || 0, 
+      icon: Droplet 
+    },
+    { 
+      title: '7. Energía Asequible y No Contaminante', 
+      matchValue: 'ods 7 energia asequible y no contaminante',
+      description: 'Transición energética, instalación de celdas solares y reducción del consumo de combustibles.', 
+      count: areaCounts['ods 7 energia asequible y no contaminante'] || 0, 
+      icon: Sun 
+    },
+    { 
+      title: '8. Trabajo Decente y Crecimiento Económico', 
+      matchValue: 'ods 8 trabajo decente y crecimiento economico',
+      description: 'Inclusión laboral, capacitación técnica para el empleo y fortalecimiento de comercios locales.', 
+      count: areaCounts['ods 8 trabajo decente y crecimiento economico'] || 0, 
+      icon: Briefcase 
+    },
+    { 
+      title: '9. Industria, Innovación e Infraestructura', 
+      matchValue: 'ods 9 industria innovacion e infraestructura',
+      description: 'Desarrollo de infraestructura comunitaria, conectividad digital y adopción de tecnologías limpias.', 
+      count: areaCounts['ods 9 industria innovacion e infraestructura'] || 0, 
+      icon: Cpu 
+    },
+    { 
+      title: '10. Reducción de las Desigualdades', 
+      matchValue: 'ods 10 reduccion de las desigualdades',
+      description: 'Inclusión social de minorías, apoyo integral a personas con discapacidad y justicia económica.', 
+      count: areaCounts['ods 10 reduccion de las desigualdades'] || 0, 
+      icon: TrendingDown 
+    },
+    { 
+      title: '11. Ciudades y Comunidades Sostenibles', 
+      matchValue: 'ods 11 ciudades y comunidades sostenibles',
+      description: 'Optimización de espacios públicos, movilidad urbana compartida y viviendas dignas resilientes.', 
+      count: areaCounts['ods 11 ciudades y comunidades sostenibles'] || 0, 
+      icon: Building2
+    },
+    { 
+      title: '12. Producción y Consumo Responsables', 
+      matchValue: 'ods 12 produccion y consumo responsables',
+      description: 'Modelos de economía circular, reducción drástica de mermas y gestión de residuos sólidos.', 
+      count: areaCounts['ods 12 produccion y consumo responsables'] || 0, 
+      icon: RefreshCcw 
+    },
+    { 
+      title: '13. Acción por el Clima', 
+      matchValue: 'ods 13 accion por el clima',
+      description: 'Estrategias de mitigación ambiental, reforestación urbana y reducción de huella de carbono.', 
+      count: areaCounts['ods 13 accion por el clima'] || 0, 
+      icon: Leaf 
+    },
+    { 
+      title: '14. Vida Submarina', 
+      matchValue: 'ods 14 vida submarina',
+      description: 'Limpieza de cuerpos de agua, conservación de flora marina y control de vertidos contaminantes.', 
+      count: areaCounts['ods 14 vida submarina'] || 0, 
+      icon: Fish 
+    },
+    { 
+      title: '15. Vida de Ecosistemas Terrestres', 
+      matchValue: 'ods 15 vida de ecosistemas terrestres',
+      description: 'Regeneración biológica de suelos, protección de biodiversidad local y rescate de áreas verdes.', 
+      count: areaCounts['ods 15 vida de ecosistemas terrestres'] || 0, 
+      icon: Trees 
+    },
+    { 
+      title: '16. Paz, Justicia e Instituciones Sólidas', 
+      matchValue: 'ods 16 paz justicia e instituciones solidas',
+      description: 'Resolución pacífica de conflictos, fomento a la legalidad y transparencia en comités vecinales.', 
+      count: areaCounts['ods 16 paz justicia e instituciones solidas'] || 0, 
+      icon: Scale 
+    },
+    { 
+      title: '17. Alianzas para Lograr los Objetivos', 
+      matchValue: 'ods 17 alianzas para lograr los objetivos',
+      description: 'Vinculación multisectorial, convenios universitarios y redes operativas de voluntariado social.', 
+      count: areaCounts['ods 17 alianzas para lograr los objetivos'] || 0, 
+      icon: Handshake 
+    }
   ];
 
   return (

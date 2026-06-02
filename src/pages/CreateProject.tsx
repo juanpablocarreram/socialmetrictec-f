@@ -13,17 +13,127 @@ import {
   Sparkles,
   ArrowRight,
   Loader2,
+  Heart, 
+  Coins, 
+  Utensils,
+  Users, 
+  Droplet, 
+  Sun, 
+  Briefcase, 
+  TrendingDown, 
+  Building2, 
+  ShieldAlert, 
+  Fish, 
+  Trees, 
+  Handshake 
 } from 'lucide-react';
+
 import { cn } from '@/src/lib/utils';
 import { createProject } from '@/src/services/projectService';
 
 const STRATEGIC_AREAS = [
-  { label: 'Educación', value: 'educacion', icon: GraduationCap, color: 'bg-blue-50 text-blue-600 border-blue-100' },
-  { label: 'Salud', value: 'salud', icon: Stethoscope, color: 'bg-rose-50 text-rose-600 border-rose-100' },
-  { label: 'Medio Ambiente', value: 'medio_ambiente', icon: Leaf, color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
-  { label: 'Justicia Social', value: 'justicia_social', icon: Scale, color: 'bg-amber-50 text-amber-600 border-amber-100' },
-  { label: 'Economía Circular', value: 'economia_circular', icon: RefreshCcw, color: 'bg-indigo-50 text-indigo-600 border-indigo-100' },
-  { label: 'Tecnología Social', value: 'tecnologia_social', icon: Cpu, color: 'bg-violet-50 text-violet-600 border-violet-100' },
+  { 
+    label: 'Fin de la Pobreza', 
+    value: 'ods 1 fin de la pobreza', 
+    icon: Coins, 
+    color: 'bg-rose-50 text-rose-600 border-rose-100' 
+  },
+  { 
+    label: 'Hambre Cero', 
+    value: 'ods 2 hambre cero', 
+    icon: Utensils, 
+    color: 'bg-yellow-50 text-yellow-600 border-yellow-100' 
+  },
+  { 
+    label: 'Salud y Bienestar', 
+    value: 'ods 3 salud y bienestar', 
+    icon: Heart, 
+    color: 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+  },
+  { 
+    label: 'Educación de Calidad', 
+    value: 'ods 4 educación de calidad', 
+    icon: GraduationCap, 
+    color: 'bg-red-50 text-red-600 border-red-100' 
+  },
+  { 
+    label: 'Igualdad de Género', 
+    value: 'ods 5 igualdad de genero', 
+    icon: Users, 
+    color: 'bg-orange-50 text-orange-500 border-orange-100' 
+  },
+  { 
+    label: 'Agua Limpia y Saneamiento', 
+    value: 'ods 6 agua limpia y saneamiento', 
+    icon: Droplet, 
+    color: 'bg-sky-50 text-sky-500 border-sky-100'  
+  },
+  { 
+    label: 'Energía Asequible y No Contaminante', 
+    value: 'ods 7 energia asequible y no contaminante', 
+    icon: Sun, 
+    color: 'bg-amber-400/10 text-amber-500 border-amber-200' 
+  },
+  { 
+    label: 'Trabajo Decente y Crecimiento Económico', 
+    value: 'ods 8 trabajo decente y crecimiento economico', 
+    icon: Briefcase, 
+    color: 'bg-red-900/10 text-red-800 border-red-900/20' 
+  },
+  { 
+    label: 'Industria, Innovación e Infraestructura', 
+    value: 'ods 9 industria innovacion e infraestructura', 
+    icon: Cpu, 
+    color: 'bg-orange-50 text-orange-600 border-orange-100' 
+  },
+  { 
+    label: 'Reducción de las Desigualdades', 
+    value: 'ods 10 reduccion de las desigualdades', 
+    icon: TrendingDown, 
+    color: 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-100' 
+  },
+  { 
+    label: 'Ciudades y Comunidades Sostenibles', 
+    value: 'ods 11 ciudades y comunidades sostenibles', 
+    icon: Building2, 
+    color: 'bg-orange-50 text-orange-700 border-orange-200' 
+  },
+  { 
+    label: 'Producción y Consumo Responsables', 
+    value: 'ods 12 produccion y consumo responsables', 
+    icon: RefreshCcw, 
+    color: 'bg-amber-50 text-amber-600 border-amber-100' 
+  },
+  { 
+    label: 'Acción por el Clima', 
+    value: 'ods 13 accion por el clima', 
+    icon: Leaf, 
+    color: 'bg-green-50 text-green-700 border-green-100' 
+  },
+  { 
+    label: 'Vida Submarina', 
+    value: 'ods 14 vida submarina', 
+    icon: Fish, 
+    color: 'bg-blue-50 text-blue-500 border-blue-100' 
+  },
+  { 
+    label: 'Vida de Ecosistemas Terrestres', 
+    value: 'ods 15 vida de ecosistemas terrestres', 
+    icon: Trees, 
+    color: 'bg-lime-50 text-lime-600 border-lime-100' 
+  },
+  { 
+    label: 'Paz, Justicia e Instituciones Sólidas', 
+    value: 'ods 16 paz justicia e instituciones solidas', 
+    icon: Scale, 
+    color: 'bg-blue-50 text-blue-700 border-blue-100' 
+  },
+  { 
+    label: 'Alianzas para Lograr los Objetivos', 
+    value: 'ods 17 alianzas para lograr los objetivos', 
+    icon: Handshake, 
+    color: 'bg-slate-50 text-slate-700 border-slate-200' 
+  }
 ];
 
 const DESC_MIN = 100;
@@ -38,7 +148,7 @@ export default function CreateProject() {
     description: '',
     objetivo: '',
     localidad: '',
-    area: 'educacion',
+    area: 'ods 1 fin de la pobreza',
     image: '',
   });
 
@@ -194,7 +304,7 @@ export default function CreateProject() {
 
             <div className="space-y-6">
               <label className="text-[10px] font-bold text-outline uppercase tracking-widest">
-                Selecciona el Área de Impacto
+                Selecciona el Área de Impacto (ODS)
               </label>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {STRATEGIC_AREAS.map((area) => (
