@@ -75,5 +75,5 @@ export const getProjectLeaders = async (projectId: number): Promise<ProjectLeade
 };
 
 export const deleteProject = async (projectId: number): Promise<void> => {
-  await api.delete(`/project/${projectId}`);
+  await api.delete(`/project/${projectId}/delete`);
 };

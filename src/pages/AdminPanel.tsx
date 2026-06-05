@@ -70,6 +70,7 @@ export default function AdminPanel() {
   const [projectSearch, setProjectSearch] = useState('');
   const [projectToDelete, setProjectToDelete] = useState<ProjectSummary | null>(null);
   const [deletingProject, setDeletingProject] = useState(false);
+  const [projectDeleteError, setProjectDeleteError] = useState('');
 
   useEffect(() => {
     api.get('/user/users-preview')
@@ -282,12 +283,13 @@ export default function AdminPanel() {
   const confirmDeleteProject = async () => {
     if (!projectToDelete) return;
     setDeletingProject(true);
+    setProjectDeleteError('');
     try {
       await deleteProject(projectToDelete.project_id);
       setProjectList((list) => list.filter((p) => p.project_id !== projectToDelete.project_id));
       setProjectToDelete(null);
     } catch (err: any) {
-      console.error(err);
+      setProjectDeleteError(err?.response?.data?.detail ?? 'No se pudo eliminar el proyecto.');
     } finally {
       setDeletingProject(false);
     }
@@ -902,7 +904,7 @@ export default function AdminPanel() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            onClick={() => setProjectToDelete(null)}
+            onClick={() => { setProjectToDelete(null); setProjectDeleteError(''); }}
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           />
           <motion.div
@@ -932,9 +934,16 @@ export default function AdminPanel() {
                 </p>
               </div>
 
+              {projectDeleteError && (
+                <div className="flex items-center gap-3 w-full bg-red-50 border border-red-200/60 rounded-2xl p-4 text-red-600 text-left">
+                  <AlertCircle className="w-5 h-5 shrink-0" />
+                  <p className="text-xs font-medium tracking-wide">{projectDeleteError}</p>
+                </div>
+              )}
+
               <div className="flex gap-3 w-full pt-4">
                 <button
-                  onClick={() => setProjectToDelete(null)}
+                  onClick={() => { setProjectToDelete(null); setProjectDeleteError(''); }}
                   className="flex-grow py-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-low rounded-2xl transition-all"
                 >
                   Cancelar
